@@ -7,14 +7,43 @@ var express = require('express'),
   confLoader = require('./lib/ConfLoader.js')(),
   ChatworkAPI = require('./lib/ChatworkAPI.js');
 
-var sendRes = function(item, req, res) {
-  item.status = item.status || 200;
-  logger.log(req.url, 'status:' + item.status, JSON.stringify(item.message));
-  res.status(item.status);
-  res.send(item.message);
+var SimpleResponse = function(req, res) {
+  return {
+    send: function(item) {
+      item.status = item.status || 200;
+      logger.log(req.url, 'status:' + item.status, JSON.stringify(item.message));
+      res.status(item.status);
+      res.send(item.message);
+    }
+  };
 };
 
-var send = function(params, req, res) {
+var getMessageItem = function(req) {
+  var apitoken = req.params.api;
+  var room = req.params.room;
+  if(room.indexOf('rid') != -1) room = room.split('rid')[1];
+  var body;
+  if(req.method == 'GET') {
+    body = req.query.body;
+  } else {
+    body = req.body.body || req.body;
+  }
+  return {
+    apitoken: apitoken, room: room, body: body
+  };
+};
+
+/**
+  chatworkにメッセージを送信する
+  params:
+    {
+      apitoken: <string> ChatworkAPIToken,
+      room: <string> Room ID,
+      body: <string> 本文
+    }
+  sres: <SimpleResponse>
+*/
+var send = function(params, sres) {
   var err = [];
   if(!apiTokens.contains(params.apitoken)) {
     err.push('APITOKENが無効');
@@ -23,15 +52,18 @@ var send = function(params, req, res) {
     err.push('メッセージ本文がない、または、Content-Typeが合ってない');
   }
   if(err.length > 0) {
-    sendRes({ status:400, message: err }, req, res);
+    sres.send({ status:400, message: err });
     return;
   }
-
+  if(isDev) {
+    sres.send({ message: params });
+    return;
+  }
   chatwork.room(params.room).messages().create(params.body, function(err, msg) {
     if(err) {
-      sendRes({ status: 400, message: err }, req, res);
+      sres.send({ status: 400, message: err });
     } else {
-      sendRes({ message: 'OK' }, req, res);
+      sres.send({ message: 'OK' });
     }
   });
 };
@@ -41,23 +73,14 @@ var recieveReloadTokens = function(req, res){
   res.send('reload');
 };
 
-var recieveSendMessageByPost = function(req, res){
-  send({
-    apitoken: req.params.api,
-    room: req.params.room,
-    body: req.body.body || req.body
-  }, req, res);
-};
-
-var recieveSendMessageByGet = function(req, res){
-  send({
-    apitoken: req.params.api,
-    room: req.params.room,
-    body: req.query.body
-  }, req, res);
-};
+var recieveSendMessage = function(req, res) {
+  var messageItem = getMessageItem(req);
+  var sres = SimpleResponse(req, res);
+  send(messageItem, sres);
+}
 
 var validChatworkConf = function(chatworkConf) {
+  if(isDev) return;
   if(!chatworkConf.chatwork_api_token || chatworkConf.chatwork_api_token == 'xxxx') {
     throw 'chatwork_api_token not found in ./config/chatwork.conf';
   }
@@ -66,6 +89,7 @@ var validChatworkConf = function(chatworkConf) {
 // ----------
 // main
 // ----------
+var isDev = process.argv[3] == 'dev';
 var chatworkConf = confLoader.load('./config/chatwork.conf');
 validChatworkConf(chatworkConf);
 var chatwork = ChatworkAPI(chatworkConf.chatwork_api_token);
@@ -90,9 +114,10 @@ app.use('*', function(req, res, next){
 });
 
 var routerDoc = RouterDoc(app, logger);
+// API
 routerDoc.get('/ctrl/reload', recieveReloadTokens     , 'APITokenを更新する');
-routerDoc.post('/:api/:room', recieveSendMessageByPost, 'POSTでメッセージを送信する');
-routerDoc.get('/:api/:room' , recieveSendMessageByGet , 'GETでメッセージを送信する');
+routerDoc.post('/:api/:room', recieveSendMessage, 'POSTでメッセージを送信する');
+routerDoc.get('/:api/:room' , recieveSendMessage , 'GETでメッセージを送信する');
 routerDoc.listen(process.argv[2] || 3000);
 
 logger.log('## START CHATWORK PROXY ##');
