@@ -1,4 +1,4 @@
-var requireLib = require('./lib/util/findLib.js').require;
+var requireLib = require('./lib/util/FindLib.js').require;
 var express = require('express'),
   bodyParser = require('body-parser'),
   fs = require('fs'),
