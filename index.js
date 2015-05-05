@@ -3,7 +3,8 @@ var express = require('express'),
   fs = require('fs'),
   RouterDoc = require('./lib/RouterDoc.js'),
   logger = require('./lib/logger.js'),
-  setupAPI = require('./lib/usecase/SetupAPI.js');
+  setupAPI = require('./lib/usecase/SetupAPI.js'),
+  CycleLogCopy = require('./lib/CycleLogCopy.js');
 
 var app = express();
 
@@ -36,3 +37,6 @@ routerDoc.print();
 
 // create stop.sh
 fs.writeFileSync('stop.sh', 'kill -9 ' + process.pid);
+
+// log
+CycleLogCopy().runByDay();
