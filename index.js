@@ -44,8 +44,8 @@ routerDoc.get( '/ctrl/reload' , api.reloadAPITokenAPI.action, 'APITokenを更新
 routerDoc.get( '/private/*'   , basicAuth.valid(privateArea), 'BasicAuthが必要');
 routerDoc.get( '/private/test', test                        , 'Test用');
 routerDoc.get( '/private/log' , api.showLogAPI.action       , 'Log表示');
-routerDoc.post('/:api/:room'  , api.sendMessageAPI.action   , 'POSTでメッセージを送信する');
-routerDoc.get( '/:api/:room'  , api.sendMessageAPI.action   , 'GETでメッセージを送信する');
+routerDoc.post('/send/:api/:room'  , api.sendMessageAPI.action   , 'POSTでメッセージを送信する');
+routerDoc.get( '/send/:api/:room'  , api.sendMessageAPI.action   , 'GETでメッセージを送信する');
 
 routerDoc.listen(process.argv[2] || 3000);
 
